@@ -26,6 +26,17 @@ PAYMENT_INFO = {
     "name": "Виталий Г",                      # ФИО получателя
 }
 
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)  # ✅ ЭТА СТРОКА БЫЛА ПРОПУЩЕНА!
+
+# Создаём бота и диспетчер
+bot = Bot(token=TOKEN)
+dp = Dispatcher()  # ✅ ЭТА СТРОКА БЫЛА ПРОПУЩЕНА!
+
 
 # --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 
