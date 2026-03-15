@@ -19,33 +19,29 @@ TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID", -1))
 GOAL_AMOUNT = int(os.getenv("GOAL_AMOUNT", 700000))  # ✅ Цель: 700 000 ₽
 
-# Реквизиты для оплаты (две карты)
+# Реквизиты для оплаты (две карты) — БЕЗ ПРОБЕЛОВ!
 PAYMENT_INFO = {
-    "sber_card": "2202206825943553",      # Сбер
-    "tinkoff_card": "2200701185988638",   # Тинькофф ← Новая карта
-    "name": "Виталий Г",                   # ФИО получателя
+    "sber_card": "2202206825943553",         # ✅ Сбер без пробелов
+    "tinkoff_card": "2200701185988638",      # ✅ Тинькофф без пробелов
+    "name": "Виталий Г",                      # ФИО получателя
 }
 
-# Настройка логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
 
-# Создаём бота и диспетчер
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
+# --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 
+def format_card(card: str) -> str:
+    """Форматирует номер карты для красивого отображения:
+    2202206825943553 → 2202 2068 2594 3553
+    """
+    return ' '.join(card[i:i+4] for i in range(0, len(card), 4))
 
-# --- ФУНКЦИЯ СОЗДАНИЯ QR-КОДА ---
 
 def generate_qr_code(card_number: str, amount: int = None) -> BytesIO:
     """
     Создаёт QR-код для оплаты через СБП
     Возвращает изображение в памяти (BytesIO)
     """
-    # Упрощённый формат для СБП
+    # Упрощённый формат для СБП (номер карты без пробелов)
     if amount:
         qr_text = f"ST00012|Name={PAYMENT_INFO['name']}|PersonalAcc={card_number}|BankName=СБП|Sum={amount * 100}|Purpose=Донат на гараж"
     else:
@@ -85,6 +81,7 @@ def get_donation_keyboard():
     builder.button(text="✍️ Своя сумма", callback_data="donate_custom")
     builder.adjust(3, 2, 1)
     return builder.as_markup()
+
 
 def get_main_keyboard():
     """Основная клавиатура"""
@@ -127,7 +124,22 @@ async def cmd_start(message: types.Message):
     text = f"""
 🚗 **Гараж Мечты — Проект покупки гаража**
 
-Привет! Я коплю на покупку готового гаража в Екатеринбурге. Гаража мечты.
+Привет! Я с детства люблю чинить машины своими руками. Но делать это на улице — не самое удобное занятие. ❄️🌧
+
+Моя мечта — собственный гараж в Екатеринбурге. Там я смогу комфортно ремонтировать машину и хранить всё необходимое.
+
+Я коплю на покупку готового гаража. Любая поддержка приблизит меня к цели!
+
+💙 Спасибо, что вы со мной! Пусть мечты сбываются.
+
+💰 На что пойдут ваши донаты:
+✓ Оформление документов и нотариус
+✓ Первый взнос или полная оплата гаража
+✓ Минимальный ремонт: свет, розетки, вентиляция
+
+🎁 Что вы получите взамен:
+• Именной статус в боте: «Помощник», «Мастер», «Легенда гаража»
+• Персональная благодарность с упоминанием в канале
 
 📊 **Прогресс сбора:**
 {progress}% собрано ({total:,.0f} ₽ из {GOAL_AMOUNT:,.0f} ₽)
@@ -163,8 +175,8 @@ async def cmd_report(message: types.Message):
 
 📊 Прогресс: {(donations / GOAL_AMOUNT) * 100:.1f}%
 
-Спасибо всем за поддержку! 
-Пусть мечты сбываются.🙏
+Спасибо всем за поддержку!
+Пусть мечты сбываются. 🙏
     """
 
     await message.answer(text, parse_mode="Markdown")
@@ -203,19 +215,22 @@ async def cmd_garages(message: types.Message):
                 parse_mode="Markdown"
             )
         except FileNotFoundError:
+            logger.error(f"❌ Фото не найдено: {garage['photo']}")
             await message.answer(f"❌ Фото {garage['photo']} не найдено!")
 
     await message.answer(
-        "💙 Это варианты, которые я рассматриваю.\n"
+        "💙 Это варианты гаражей, которые я рассматриваю.\n"
         "Все средства идут на покупку одного из них!\n\n"
         "📊 Прогресс сбора: /report",
         parse_mode="Markdown"
     )
 
+
 @dp.message(Command("admin"))
 async def cmd_admin(message: types.Message):
     """Админ-панель (только для вас)"""
     if message.from_user.id != ADMIN_ID:
+        logger.warning(f"Попытка доступа к /admin от пользователя {message.from_user.id}")
         await message.answer("🔐 Доступ только для администратора")
         return
 
@@ -277,7 +292,7 @@ async def qr_help(callback: types.CallbackQuery):
 
 ⚠️ После оплаты можете написать мне @VitaMon1
 
-⚠️ **Важно:** 
+⚠️ **Важно:**
 - Это добровольное пожертвование (дарение)
 
 Спасибо за поддержку! 🙏
@@ -381,8 +396,8 @@ async def send_payment_info(message: types.Message, amount: int):
 
 **Реквизиты для перевода:**
 
-🔹 **Сбер:** `{PAYMENT_INFO['sber_card']}`
-🔹 **Тинькофф:** `{PAYMENT_INFO['tinkoff_card']}`
+🔹 **Сбер:** `{format_card(PAYMENT_INFO['sber_card'])}`
+🔹 **Тинькофф:** `{format_card(PAYMENT_INFO['tinkoff_card'])}`
 🔹 Получатель: {PAYMENT_INFO['name']}
 
 📱 **Или отсканируйте QR-код:**
@@ -400,7 +415,7 @@ async def send_payment_info(message: types.Message, amount: int):
 
 async def send_qr_message(message: types.Message, amount: int = None):
     """Отправить сообщение с QR-кодом (для Сбера — основной)"""
-    # Генерируем QR-код для основной карты (Сбер)
+    # Генерируем QR-код для основной карты (Сбер) — номер БЕЗ пробелов
     qr_buffer = generate_qr_code(PAYMENT_INFO["sber_card"], amount)
 
     # Подпись к фото
@@ -410,8 +425,8 @@ async def send_qr_message(message: types.Message, amount: int = None):
 Отсканируйте код через приложение банка.
 
 💳 Получатель: {PAYMENT_INFO['name']}
-🔢 **Сбер:** `{PAYMENT_INFO['sber_card']}`
-🔢 **Тинькофф:** `{PAYMENT_INFO['tinkoff_card']}`
+🔢 **Сбер:** `{format_card(PAYMENT_INFO['sber_card'])}`
+🔢 **Тинькофф:** `{format_card(PAYMENT_INFO['tinkoff_card'])}`
 
 ⚠️ Если QR не сработал — введите карту вручную.
     """
@@ -460,14 +475,15 @@ async def handle_custom_amount(message: types.Message):
             f"✅ **Донат {amount:,.0f} ₽ принят!**\n\n"
             f"Спасибо за поддержку! 🙏\n\n"
             f"**Реквизиты для перевода:**\n"
-            f"🔹 **Сбер:** `{PAYMENT_INFO['sber_card']}`\n"
-            f"🔹 **Тинькофф:** `{PAYMENT_INFO['tinkoff_card']}`\n"
+            f"🔹 **Сбер:** `{format_card(PAYMENT_INFO['sber_card'])}`\n"
+            f"🔹 **Тинькофф:** `{format_card(PAYMENT_INFO['tinkoff_card'])}`\n"
             f"🔹 Получатель: {PAYMENT_INFO['name']}\n\n"
             f"⚠️ После оплаты напишите мне @VitaMon1",
             parse_mode="Markdown",
             reply_markup=get_donation_keyboard()
         )
 
+        # Лог без полного номера карты (безопасность)
         logger.info(f"💰 Донат: {amount:,.0f} ₽ от @{message.from_user.username or 'Аноним'}")
 
     except ValueError:
@@ -486,6 +502,13 @@ async def handle_custom_amount(message: types.Message):
 async def on_startup():
     """Действия при запуске"""
     await db.init_db()
+
+    # Проверка настроек
+    if ADMIN_ID == -1:
+        logger.warning("⚠️ ADMIN_ID не настроен! Команда /admin не будет работать.")
+    else:
+        logger.info(f"✅ ADMIN_ID настроен: {ADMIN_ID}")
+
     logger.info("🚀 Бот запущен!")
 
     # Устанавливаем команды в меню Telegram
