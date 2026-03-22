@@ -6,6 +6,7 @@
 # База данных
 *.db
 *.sqlite
+donations.db
 
 # Виртуальное окружение
 venv/

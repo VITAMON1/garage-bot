@@ -59,3 +59,27 @@ async def get_all_expenses():
     async with aiosqlite.connect(DB_NAME) as db:
         cursor = await db.execute('SELECT * FROM expenses ORDER BY date DESC')
         return await cursor.fetchall()
+
+# --- Новые методы ---
+
+async def get_top_donors(limit):
+    """Возвращает топ доноров по общей сумме взносов."""
+    async with aiosqlite.connect(DB_NAME) as db:
+        cursor = await db.execute(
+            '''SELECT user_id, username, SUM(amount) as total_amount 
+               FROM donations 
+               GROUP BY user_id 
+               ORDER BY total_amount DESC 
+               LIMIT ?''',
+            (limit,)
+        )
+        return await cursor.fetchall()
+
+async def get_user_donations(user_id):
+    """Возвращает все донаты конкретного пользователя."""
+    async with aiosqlite.connect(DB_NAME) as db:
+        cursor = await db.execute(
+            'SELECT * FROM donations WHERE user_id = ? ORDER BY date DESC',
+            (user_id,)
+        )
+        return await cursor.fetchall()
