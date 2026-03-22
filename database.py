@@ -83,3 +83,13 @@ async def get_user_donations(user_id):
             (user_id,)
         )
         return await cursor.fetchall()
+
+async def get_user_total_donations(user_id):
+    """Возвращает общую сумму донатов конкретного пользователя."""
+    async with aiosqlite.connect(DB_NAME) as db:
+        cursor = await db.execute(
+            'SELECT SUM(amount) FROM donations WHERE user_id = ?',
+            (user_id,)
+        )
+        result = await cursor.fetchone()
+        return result[0] or 0

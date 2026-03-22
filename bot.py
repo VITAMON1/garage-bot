@@ -198,12 +198,11 @@ async def cmd_start(message: types.Message):
     """Главное меню"""
     total = await db.get_total_donations()
 
-    # Получаем статус донора если пользователь уже жертвовал
+    # ✅ ИСПРАВЛЕНО: получаем СУММУ донатов пользователя, а не список
     user_status = "👤 Гость"
-    if message.from_user.id:
-        user_total = await db.get_user_donations(message.from_user.id)
-        if user_total > 0:
-            user_status = get_donor_status(user_total)
+    user_total = await db.get_user_total_donations(message.from_user.id)  # ← исправлено
+    if user_total > 0:
+        user_status = get_donor_status(user_total)
 
     text = f"""
 🚗 **Гараж Мечты — Проект покупки гаража**
@@ -291,8 +290,9 @@ async def get_top_donors_text(limit: int = 5) -> str:
 
         result = ""
         for i, donor in enumerate(top_donors, 1):
-            username = donor[0] if donor[0] else "Аноним"
-            amount = donor[1]
+            # ✅ ИСПРАВЛЕНО: правильная индексация кортежа (user_id, username, total_amount)
+            username = donor[1] if donor[1] else "Аноним"  # ← индекс 1 = username
+            amount = donor[2]  # ← индекс 2 = total_amount
             status = get_donor_status(amount)
 
             medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
@@ -654,8 +654,8 @@ async def handle_custom_amount(message: types.Message):
         # Проверяем milestone'ы
         await check_milestones(old_total, new_total)
 
-        # Определяем статус донора
-        user_total = await db.get_user_donations(message.from_user.id)
+        # ✅ ИСПРАВЛЕНО: получаем СУММУ, а не список
+        user_total = await db.get_user_total_donations(message.from_user.id)  # ← исправлено
         status = get_donor_status(user_total)
 
         # Отправляем подтверждение + реквизиты
